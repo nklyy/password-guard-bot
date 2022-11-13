@@ -5,6 +5,7 @@ import (
 	"log"
 	"password-manager-bot/config"
 	"password-manager-bot/internal/bot"
+	"password-manager-bot/pkg/crypto"
 	"password-manager-bot/pkg/logger"
 	"password-manager-bot/pkg/mongodb"
 	"syscall"
@@ -51,6 +52,11 @@ func main() {
 	}
 	zapLogger.Info("DB connected successfully")
 
+	cryptoService, err := crypto.NewCryptoService()
+	if err != nil {
+		zapLogger.Fatalf("failed to create crypto service: %v", err)
+	}
+
 	// Repositories
 	botRepository, err := bot.NewRepository(db, cfg.MongoDbName, zapLogger)
 	if err != nil {
@@ -61,11 +67,26 @@ func main() {
 	if err != nil {
 		log.Panic(err)
 	}
+	botApi.Debug = true
 
-	botClient, err := bot.NewClient(botApi, botRepository, zapLogger)
+	messageService, err := bot.NewMessageService(botApi, zapLogger)
+	if err != nil {
+		zapLogger.Fatalf("failed to create message service: %v", err)
+	}
+
+	botService, err := bot.NewService(botApi, cryptoService, messageService, botRepository, zapLogger)
 	if err != nil {
 		zapLogger.Fatalf("failed to create bot service: %v", err)
 	}
 
-	botClient.StartBot()
+	botClient, err := bot.NewClient(botService, messageService, zapLogger)
+	if err != nil {
+		zapLogger.Fatalf("failed to create bot service: %v", err)
+	}
+
+	updateConfig := tgbotapi.NewUpdate(0)
+	updateConfig.Timeout = 60
+
+	updates := botApi.GetUpdatesChan(updateConfig)
+	botClient.StartBot(updates)
 }
