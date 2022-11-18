@@ -91,7 +91,7 @@ func (c *client) StartBot(updates tgbotapi.UpdatesChannel) {
 							continue
 						}
 
-						msg := c.messageSvc.SendMessage(tgbotapi.NewMessage(update.Message.Chat.ID, fmt.Sprintf("🟠 NOTICE: This message will be delete in 10 seconds. \nYour data: %s", string(*dec))))
+						msg := c.messageSvc.SendManualMessage(tgbotapi.NewMessage(update.Message.Chat.ID, fmt.Sprintf("🟠 NOTICE: This message will be delete in 10 seconds. \nYour data: %s", string(*dec))))
 
 						go func(chatId int64, messageId int) {
 							time.Sleep(10 * time.Second)
@@ -142,6 +142,8 @@ func (c *client) StartBot(updates tgbotapi.UpdatesChannel) {
 			// Extract the command from the Message.
 			switch update.Message.Command() {
 			case "start":
+				c.messageSvc.SendWelcomeMessage(update.Message.Chat.ID)
+
 				err := c.botSvc.CreateUser(update.Message.Chat.ID)
 				if err != nil {
 					if mongo.IsDuplicateKeyError(err) {
@@ -154,7 +156,7 @@ func (c *client) StartBot(updates tgbotapi.UpdatesChannel) {
 				user_state[update.Message.Chat.ID] = &UserState{
 					State: "from",
 				}
-				c.messageSvc.SendMessage(tgbotapi.NewMessage(update.Message.Chat.ID, "1️⃣ Ok. Let's start. First step enter from what password."))
+				c.messageSvc.SendStartEncryptProcess(update.Message.Chat.ID)
 			case "dec":
 				userDataNameChunks, err := c.botSvc.GetUserDataNamesByChunks(update.Message.Chat.ID)
 				if err != nil {
@@ -171,16 +173,11 @@ func (c *client) StartBot(updates tgbotapi.UpdatesChannel) {
 					State: "decrypt",
 				}
 
-				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "1️⃣ What do you want to decrypt?")
-				msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
-					userDataNameChunks...,
-				)
-
-				c.messageSvc.SendMessage(msg)
+				c.messageSvc.AskWhatDecrypt(update.Message.Chat.ID, userDataNameChunks)
 			// case "del":
 			// 	c.messageSvc.SendMessage(tgbotapi.NewMessage(update.Message.Chat.ID, "I'm ok."))
 			default:
-				c.messageSvc.SendMessage(tgbotapi.NewMessage(update.Message.Chat.ID, "❌ Incorrect command!"))
+				c.messageSvc.SendIncorrectCommand(update.Message.Chat.ID)
 			}
 		} else if update.CallbackQuery != nil {
 			c.messageSvc.DeleteMessage(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID)

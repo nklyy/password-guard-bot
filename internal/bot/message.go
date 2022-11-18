@@ -8,10 +8,13 @@ import (
 )
 
 type MessageService interface {
-	SendMessage(message tgbotapi.MessageConfig) tgbotapi.Message
+	SendManualMessage(message tgbotapi.MessageConfig) tgbotapi.Message
 	DeleteMessage(chatId int64, messageId int)
 
+	SendWelcomeMessage(chatId int64)
+	SendStartEncryptProcess(chatId int64)
 	SendWrongMessage(chatId int64)
+	SendIncorrectCommand(chatId int64)
 	SendSuccessMessage(chatId int64)
 	SendAlreadyHaveNameWithKeyboard(chatId int64)
 	SendDoNotHaveData(chatId int64)
@@ -20,6 +23,7 @@ type MessageService interface {
 	AskLogin(chatId int64)
 	AskPassword(chatId int64)
 	AskNewNameFromData(chatId int64)
+	AskWhatDecrypt(chatId int64, data [][]tgbotapi.InlineKeyboardButton)
 }
 
 type messageService struct {
@@ -45,7 +49,7 @@ var keyboard = tgbotapi.NewInlineKeyboardMarkup(
 	),
 )
 
-func (s *messageService) SendMessage(message tgbotapi.MessageConfig) tgbotapi.Message {
+func (s *messageService) SendManualMessage(message tgbotapi.MessageConfig) tgbotapi.Message {
 	msg, err := s.botApi.Send(message)
 
 	if err != nil {
@@ -61,8 +65,26 @@ func (s *messageService) DeleteMessage(chatId int64, messageId int) {
 	}
 }
 
+func (s *messageService) SendWelcomeMessage(chatId int64) {
+	if _, err := s.botApi.Send(tgbotapi.NewMessage(chatId, "Hello. It's password manager.\nWe store only your encrypted passwords.\nMain commands:\n/enc - encrypt your data\n/dec - decrypt your data")); err != nil {
+		s.logger.Panic(err)
+	}
+}
+
+func (s *messageService) SendStartEncryptProcess(chatId int64) {
+	if _, err := s.botApi.Send(tgbotapi.NewMessage(chatId, "1️⃣ Ok. Let's start. First step enter from what password.")); err != nil {
+		s.logger.Panic(err)
+	}
+}
+
 func (s *messageService) SendWrongMessage(chatId int64) {
 	if _, err := s.botApi.Send(tgbotapi.NewMessage(chatId, "❌ Something wrong. Please try later.")); err != nil {
+		s.logger.Panic(err)
+	}
+}
+
+func (s *messageService) SendIncorrectCommand(chatId int64) {
+	if _, err := s.botApi.Send(tgbotapi.NewMessage(chatId, "❌ Incorrect command!")); err != nil {
 		s.logger.Panic(err)
 	}
 }
@@ -108,6 +130,17 @@ func (s *messageService) AskPassword(chatId int64) {
 
 func (s *messageService) AskNewNameFromData(chatId int64) {
 	if _, err := s.botApi.Send(tgbotapi.NewMessage(chatId, "Please enter new name.")); err != nil {
+		s.logger.Panic(err)
+	}
+}
+
+func (s *messageService) AskWhatDecrypt(chatId int64, data [][]tgbotapi.InlineKeyboardButton) {
+	msg := tgbotapi.NewMessage(chatId, "1️⃣ What do you want to decrypt?")
+	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
+		data...,
+	)
+
+	if _, err := s.botApi.Send(msg); err != nil {
 		s.logger.Panic(err)
 	}
 }
