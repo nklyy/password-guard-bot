@@ -8,14 +8,13 @@ import (
 )
 
 type MessageService interface {
-	SendMessage(message tgbotapi.MessageConfig)
+	SendMessage(message tgbotapi.MessageConfig) tgbotapi.Message
 	DeleteMessage(chatId int64, messageId int)
 
 	SendWrongMessage(chatId int64)
 	SendSuccessMessage(chatId int64)
-	SendFailedEncryptMessage(chatId int64)
-	SendFailedCreateMessage(chatId int64)
 	SendAlreadyHaveNameWithKeyboard(chatId int64)
+	SendDoNotHaveData(chatId int64)
 
 	AskPin(chatId int64)
 	AskLogin(chatId int64)
@@ -46,10 +45,14 @@ var keyboard = tgbotapi.NewInlineKeyboardMarkup(
 	),
 )
 
-func (s *messageService) SendMessage(message tgbotapi.MessageConfig) {
-	if _, err := s.botApi.Send(message); err != nil {
+func (s *messageService) SendMessage(message tgbotapi.MessageConfig) tgbotapi.Message {
+	msg, err := s.botApi.Send(message)
+
+	if err != nil {
 		s.logger.Panic(err)
 	}
+
+	return msg
 }
 
 func (s *messageService) DeleteMessage(chatId int64, messageId int) {
@@ -59,31 +62,19 @@ func (s *messageService) DeleteMessage(chatId int64, messageId int) {
 }
 
 func (s *messageService) SendWrongMessage(chatId int64) {
-	if _, err := s.botApi.Send(tgbotapi.NewMessage(chatId, "Something wrong. Please try later.")); err != nil {
+	if _, err := s.botApi.Send(tgbotapi.NewMessage(chatId, "❌ Something wrong. Please try later.")); err != nil {
 		s.logger.Panic(err)
 	}
 }
 
 func (s *messageService) SendSuccessMessage(chatId int64) {
-	if _, err := s.botApi.Send(tgbotapi.NewMessage(chatId, "Success. Your password has been encrypted and added.")); err != nil {
-		s.logger.Panic(err)
-	}
-}
-
-func (s *messageService) SendFailedEncryptMessage(chatId int64) {
-	if _, err := s.botApi.Send(tgbotapi.NewMessage(chatId, "Failed encrypt data. Please try later.")); err != nil {
-		s.logger.Panic(err)
-	}
-}
-
-func (s *messageService) SendFailedCreateMessage(chatId int64) {
-	if _, err := s.botApi.Send(tgbotapi.NewMessage(chatId, "Failed create data. Please try later.")); err != nil {
+	if _, err := s.botApi.Send(tgbotapi.NewMessage(chatId, "✅ Success. Your password has been encrypted and added.")); err != nil {
 		s.logger.Panic(err)
 	}
 }
 
 func (s *messageService) SendAlreadyHaveNameWithKeyboard(chatId int64) {
-	msg := tgbotapi.NewMessage(chatId, "You already have this name. Do you want replace?")
+	msg := tgbotapi.NewMessage(chatId, "🟠 You already have this name. Do you want replace?")
 
 	msg.ReplyMarkup = keyboard
 	if _, err := s.botApi.Send(msg); err != nil {
@@ -91,20 +82,26 @@ func (s *messageService) SendAlreadyHaveNameWithKeyboard(chatId int64) {
 	}
 }
 
+func (s *messageService) SendDoNotHaveData(chatId int64) {
+	if _, err := s.botApi.Send(tgbotapi.NewMessage(chatId, "🟠 You don't have data.")); err != nil {
+		s.logger.Panic(err)
+	}
+}
+
 func (s *messageService) AskPin(chatId int64) {
-	if _, err := s.botApi.Send(tgbotapi.NewMessage(chatId, "Goog. Now enter pin code. You can use one pin code for all passwords or one pin code for one password.")); err != nil {
+	if _, err := s.botApi.Send(tgbotapi.NewMessage(chatId, "2️⃣ Enter pin code. You can use one pin code for all passwords or one pin code for one password.")); err != nil {
 		s.logger.Panic(err)
 	}
 }
 
 func (s *messageService) AskLogin(chatId int64) {
-	if _, err := s.botApi.Send(tgbotapi.NewMessage(chatId, "Goog. Now enter login.")); err != nil {
+	if _, err := s.botApi.Send(tgbotapi.NewMessage(chatId, "3️⃣ Enter login.")); err != nil {
 		s.logger.Panic(err)
 	}
 }
 
 func (s *messageService) AskPassword(chatId int64) {
-	if _, err := s.botApi.Send(tgbotapi.NewMessage(chatId, "Goog. Now enter password.")); err != nil {
+	if _, err := s.botApi.Send(tgbotapi.NewMessage(chatId, "4️⃣ Enter password.")); err != nil {
 		s.logger.Panic(err)
 	}
 }

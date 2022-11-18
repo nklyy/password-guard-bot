@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"log"
 	"password-manager-bot/config"
@@ -63,6 +64,11 @@ func main() {
 		zapLogger.Fatalf("failed to create bot repository: %v", err)
 	}
 
+	err = botRepository.CreateUniqueIndexes(context.Background())
+	if err != nil {
+		zapLogger.Fatalf("failed to create bot repository indexes: %v", err)
+	}
+
 	botApi, err := tgbotapi.NewBotAPI(cfg.TELEGRAM_KEY)
 	if err != nil {
 		log.Panic(err)
@@ -74,7 +80,7 @@ func main() {
 		zapLogger.Fatalf("failed to create message service: %v", err)
 	}
 
-	botService, err := bot.NewService(botApi, cryptoService, messageService, botRepository, zapLogger)
+	botService, err := bot.NewService(botApi, cryptoService, botRepository, zapLogger)
 	if err != nil {
 		zapLogger.Fatalf("failed to create bot service: %v", err)
 	}

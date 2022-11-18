@@ -7,6 +7,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.uber.org/zap"
 )
 
@@ -14,6 +15,7 @@ import (
 type Repository interface {
 	GetUser(ctx context.Context, filter bson.M) (*User, error)
 	CreatUser(ctx context.Context, user *User) error
+	CreateUniqueIndexes(ctx context.Context) error
 	UpdateUser(ctx context.Context, user *User) error
 	DeleteData(ctx context.Context, filter bson.M) error
 }
@@ -63,6 +65,20 @@ func (r *repository) CreatUser(ctx context.Context, user *User) error {
 		}
 
 		r.logger.Errorf("failed to insert user data to db: %v", err)
+		return err
+	}
+
+	return nil
+}
+
+func (r *repository) CreateUniqueIndexes(ctx context.Context) error {
+	mod := mongo.IndexModel{
+		Keys:    bson.M{"telegram_id": 1},
+		Options: options.Index().SetUnique(true),
+	}
+
+	_, err := r.db.Database(r.dbName).Collection("data").Indexes().CreateOne(ctx, mod)
+	if err != nil {
 		return err
 	}
 

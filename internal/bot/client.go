@@ -2,8 +2,11 @@ package bot
 
 import (
 	"errors"
+	"fmt"
+	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"go.mongodb.org/mongo-driver/mongo"
 	"go.uber.org/zap"
 )
 
@@ -35,14 +38,13 @@ func (c *client) StartBot(updates tgbotapi.UpdatesChannel) {
 	user_state := make(map[int64]*UserState)
 
 	for update := range updates {
-		if update.Message != nil { // If we got a message
-
-			if update.Message == nil { // ignore any non-Message updates
+		if update.Message != nil {
+			if update.Message == nil {
 				c.messageSvc.DeleteMessage(update.Message.Chat.ID, update.Message.MessageID)
 				continue
 			}
 
-			if !update.Message.IsCommand() { // ignore any non-command Messages
+			if !update.Message.IsCommand() {
 				if user, ok := user_state[update.Message.Chat.ID]; ok {
 					switch user_state[update.Message.Chat.ID].State {
 					case "from_question":
@@ -53,23 +55,50 @@ func (c *client) StartBot(updates tgbotapi.UpdatesChannel) {
 
 						user.UpdateFrom(update.Message.Text)
 
-						if ok := c.botSvc.CheckDuplicateFromWhat(*user, update.Message.Chat.ID, update.Message.Text); ok {
+						ok, err := c.botSvc.CheckDuplicateFromWhatData(*user, update.Message.Chat.ID, update.Message.Text)
+						if err != nil {
+							c.messageSvc.SendWrongMessage(update.Message.Chat.ID)
+							continue
+						}
+
+						if ok {
 							user.UpdateState("from_question")
 							c.messageSvc.SendAlreadyHaveNameWithKeyboard(update.Message.Chat.ID)
 							continue
 						}
 
-						user.UpdateState("pin")
+						user.UpdateState("pin-encrypt")
 
 						c.messageSvc.AskPin(update.Message.Chat.ID)
 						continue
-					case "pin":
+					case "pin-encrypt":
 						c.messageSvc.DeleteMessage(update.Message.Chat.ID, update.Message.MessageID)
 
 						user.UpdatePin(update.Message.Text)
 						user.UpdateState("login")
 
 						c.messageSvc.AskLogin(update.Message.Chat.ID)
+						continue
+					case "pin-decrypt":
+						c.messageSvc.DeleteMessage(update.Message.Chat.ID, update.Message.MessageID)
+
+						user.UpdatePin(update.Message.Text)
+						user.UpdateState("login")
+
+						dec, err := c.botSvc.DecryptData(update.Message.Chat.ID, user.Pin, user.From)
+						if err != nil {
+							c.messageSvc.SendWrongMessage(update.Message.Chat.ID)
+							continue
+						}
+
+						msg := c.messageSvc.SendMessage(tgbotapi.NewMessage(update.Message.Chat.ID, fmt.Sprintf("🟠 NOTICE: This message will be delete in 10 seconds. \nYour data: %s", string(*dec))))
+
+						go func(chatId int64, messageId int) {
+							time.Sleep(10 * time.Second)
+							c.messageSvc.DeleteMessage(chatId, messageId)
+						}(update.Message.Chat.ID, msg.MessageID)
+
+						user.Refresh()
 						continue
 					case "login":
 						c.messageSvc.DeleteMessage(update.Message.Chat.ID, update.Message.MessageID)
@@ -84,7 +113,17 @@ func (c *client) StartBot(updates tgbotapi.UpdatesChannel) {
 
 						user.UpdatePassword(update.Message.Text)
 
-						c.botSvc.CreateOrUpdateUserData(update.Message.Chat.ID, *user)
+						encryptedData, err := c.botSvc.EncryptData(update.Message.Chat.ID, *user)
+						if err != nil {
+							c.messageSvc.SendWrongMessage(update.Message.Chat.ID)
+							continue
+						}
+
+						err = c.botSvc.UpdateUserEncryptedData(update.Message.Chat.ID, user.From, *encryptedData)
+						if err != nil {
+							c.messageSvc.SendWrongMessage(update.Message.Chat.ID)
+							continue
+						}
 
 						c.messageSvc.SendSuccessMessage(update.Message.Chat.ID)
 
@@ -92,11 +131,6 @@ func (c *client) StartBot(updates tgbotapi.UpdatesChannel) {
 						continue
 					default:
 						c.messageSvc.DeleteMessage(update.Message.Chat.ID, update.Message.MessageID)
-						// go func(chatId int64, messageId int) {
-						// 	time.Sleep(10 * time.Second)
-						// 	bot.Request(tgbotapi.NewDeleteMessage(chatId, messageId))
-						// }(update.Message.Chat.ID, update.Message.MessageID)
-
 						continue
 					}
 				} else {
@@ -105,33 +139,62 @@ func (c *client) StartBot(updates tgbotapi.UpdatesChannel) {
 				}
 			}
 
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "")
-
 			// Extract the command from the Message.
 			switch update.Message.Command() {
-			// case "start":
-			// 	user_state[update.Message.From.ID] = User{}
-			case "add":
-				msg.Text = "Ok. Let's start. First step enter from what password."
+			case "start":
+				err := c.botSvc.CreateUser(update.Message.Chat.ID)
+				if err != nil {
+					if mongo.IsDuplicateKeyError(err) {
+						break
+					}
+
+					c.messageSvc.SendWrongMessage(update.Message.Chat.ID)
+				}
+			case "enc":
 				user_state[update.Message.Chat.ID] = &UserState{
 					State: "from",
 				}
-			// case "delete":
-			// 	msg.Text = "Hi :)"
-			// case "show":
-			// 	msg.Text = "I'm ok."
-			default:
-				msg.Text = "Incorrect command!"
-			}
+				c.messageSvc.SendMessage(tgbotapi.NewMessage(update.Message.Chat.ID, "1️⃣ Ok. Let's start. First step enter from what password."))
+			case "dec":
+				userDataNameChunks, err := c.botSvc.GetUserDataNamesByChunks(update.Message.Chat.ID)
+				if err != nil {
+					c.messageSvc.SendWrongMessage(update.Message.Chat.ID)
+					break
+				}
 
-			c.messageSvc.SendMessage(msg)
+				if userDataNameChunks == nil {
+					c.messageSvc.SendDoNotHaveData(update.Message.Chat.ID)
+					break
+				}
+
+				user_state[update.Message.Chat.ID] = &UserState{
+					State: "decrypt",
+				}
+
+				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "1️⃣ What do you want to decrypt?")
+				msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
+					userDataNameChunks...,
+				)
+
+				c.messageSvc.SendMessage(msg)
+			// case "del":
+			// 	c.messageSvc.SendMessage(tgbotapi.NewMessage(update.Message.Chat.ID, "I'm ok."))
+			default:
+				c.messageSvc.SendMessage(tgbotapi.NewMessage(update.Message.Chat.ID, "❌ Incorrect command!"))
+			}
 		} else if update.CallbackQuery != nil {
 			c.messageSvc.DeleteMessage(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID)
 
 			if user, ok := user_state[update.CallbackQuery.Message.Chat.ID]; ok {
+				if user.State == "decrypt" {
+					user.UpdateFrom(update.CallbackQuery.Data)
+					user.UpdateState("pin-decrypt")
+					c.messageSvc.AskPin(update.CallbackQuery.Message.Chat.ID)
+				}
+
 				switch update.CallbackQuery.Data {
 				case "yes":
-					user.UpdateState("pin")
+					user.UpdateState("pin-encrypt")
 
 					c.messageSvc.AskPin(update.CallbackQuery.Message.Chat.ID)
 				case "no":
