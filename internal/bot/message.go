@@ -66,7 +66,7 @@ func (s *messageService) DeleteMessage(chatId int64, messageId int) {
 }
 
 func (s *messageService) SendWelcomeMessage(chatId int64) {
-	if _, err := s.botApi.Send(tgbotapi.NewMessage(chatId, "Hello. It's password manager.\nWe store only your encrypted passwords.\nMain commands:\n/enc - encrypt your data\n/dec - decrypt your data")); err != nil {
+	if _, err := s.botApi.Send(tgbotapi.NewMessage(chatId, "Hello. It's password guard.\nWe store only your encrypted passwords.\nMain commands:\n/enc - encrypt your data\n/dec - decrypt your data")); err != nil {
 		s.logger.Panic(err)
 	}
 }

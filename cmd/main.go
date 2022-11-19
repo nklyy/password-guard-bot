@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 	"log"
-	"password-manager-bot/config"
-	"password-manager-bot/internal/bot"
-	"password-manager-bot/pkg/crypto"
-	"password-manager-bot/pkg/logger"
-	"password-manager-bot/pkg/mongodb"
+	"password-guard-bot/config"
+	"password-guard-bot/internal/bot"
+	"password-guard-bot/pkg/crypto"
+	"password-guard-bot/pkg/logger"
+	"password-guard-bot/pkg/mongodb"
 	"syscall"
 
 	"go.uber.org/zap"
@@ -73,7 +73,7 @@ func main() {
 	if err != nil {
 		log.Panic(err)
 	}
-	botApi.Debug = true
+	// botApi.Debug = true
 
 	messageService, err := bot.NewMessageService(botApi, zapLogger)
 	if err != nil {

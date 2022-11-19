@@ -3,7 +3,7 @@ package mongodb
 import (
 	"context"
 	"log"
-	"password-manager-bot/config"
+	"password-guard-bot/config"
 	"time"
 
 	"go.mongodb.org/mongo-driver/mongo"

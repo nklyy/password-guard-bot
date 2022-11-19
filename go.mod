@@ -1,4 +1,4 @@
-module password-manager-bot
+module password-guard-bot
 
 go 1.19
 
