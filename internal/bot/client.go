@@ -83,7 +83,6 @@ func (c *client) StartBot(updates tgbotapi.UpdatesChannel) {
 						c.messageSvc.DeleteMessage(update.Message.Chat.ID, update.Message.MessageID)
 
 						user.UpdatePin(update.Message.Text)
-						user.UpdateState("login")
 
 						dec, err := c.botSvc.DecryptData(update.Message.Chat.ID, user.Pin, user.From)
 						if err != nil {
