@@ -1,1 +1,1 @@
-worker: make run
+worker: go run ./cmd/main.go
