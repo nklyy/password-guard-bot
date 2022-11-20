@@ -30,6 +30,7 @@ func (u *UserState) UpdatePassword(password string) {
 
 func (u *UserState) Refresh() {
 	u.State = ""
+	u.From = ""
 	u.Pin = ""
 	u.Login = ""
 	u.Password = ""

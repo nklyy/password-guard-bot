@@ -17,14 +17,6 @@ func NewUser(telegramId *int64) (*User, error) {
 		return nil, errors.New("invalid telegramId")
 	}
 
-	// if fromWhatData == "" {
-	// 	return nil, errors.New("invalid fromWhatData")
-	// }
-
-	// if encryptedData == "" {
-	// 	return nil, errors.New("invalid encryptedData")
-	// }
-
 	return &User{
 		ID:         primitive.NewObjectID(),
 		TelegramId: *telegramId,
