@@ -53,7 +53,7 @@ func main() {
 	}
 	zapLogger.Info("DB connected successfully")
 
-	cryptoService, err := crypto.NewCryptoService()
+	cryptoService, err := crypto.NewCryptoService(&cfg.Crypto.Iteration)
 	if err != nil {
 		zapLogger.Fatalf("failed to create crypto service: %v", err)
 	}
@@ -69,7 +69,7 @@ func main() {
 		zapLogger.Fatalf("failed to create bot repository indexes: %v", err)
 	}
 
-	botApi, err := tgbotapi.NewBotAPI(cfg.TELEGRAM_KEY)
+	botApi, err := tgbotapi.NewBotAPI(cfg.TelegramKey)
 	if err != nil {
 		log.Panic(err)
 	}

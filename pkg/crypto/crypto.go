@@ -4,7 +4,7 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
-	"crypto/sha1"
+	"crypto/sha512"
 	"encoding/base64"
 	"errors"
 	"io"
@@ -20,10 +20,15 @@ type CryptoService interface {
 }
 
 type crypto struct {
+	iteration int
 }
 
-func NewCryptoService() (CryptoService, error) {
-	return &crypto{}, nil
+func NewCryptoService(iteration *int) (CryptoService, error) {
+	if iteration == nil {
+		return nil, errors.New("incorrect iteration")
+	}
+
+	return &crypto{iteration: *iteration}, nil
 }
 
 func (c *crypto) Encrypt(pin []byte, data []byte) (string, error) {
@@ -72,7 +77,7 @@ func (c *crypto) Decrypt(pin []byte, data string) (string, error) {
 }
 
 func (c *crypto) GenerateNormalSizeCode(currentCode string) []byte {
-	dk := pbkdf2.Key([]byte(currentCode), []byte{}, 4096, 32, sha1.New)
+	dk := pbkdf2.Key([]byte(currentCode), []byte{}, c.iteration, 32, sha512.New)
 
 	return dk
 }

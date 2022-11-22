@@ -8,15 +8,20 @@ import (
 )
 
 type Config struct {
-	Environment  string `required:"true" envconfig:"APP_ENV"`
-	TELEGRAM_KEY string `required:"true" envconfig:"TELEGRAM_KEY"`
+	Environment string `required:"true" envconfig:"APP_ENV"`
+	TelegramKey string `required:"true" envconfig:"TELEGRAM_KEY"`
 
 	MongoDb
+	Crypto
 }
 
 type MongoDb struct {
 	MongoDbName string `required:"true" envconfig:"MONGO_DB_NAME"`
 	MongoDbUrl  string `required:"true" envconfig:"MONGO_DB_URL"`
+}
+
+type Crypto struct {
+	Iteration int `required:"true" envconfig:"ITERATION"`
 }
 
 var (
