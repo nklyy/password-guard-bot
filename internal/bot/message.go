@@ -19,7 +19,7 @@ type MessageService interface {
 	SendAlreadyHaveNameWithKeyboard(chatId int64)
 	SendDoNotHaveData(chatId int64)
 
-	AskPin(chatId int64)
+	AskPin(chatId int64, register bool)
 	AskLogin(chatId int64)
 	AskPassword(chatId int64)
 	AskNewNameFromData(chatId int64)
@@ -110,9 +110,16 @@ func (s *messageService) SendDoNotHaveData(chatId int64) {
 	}
 }
 
-func (s *messageService) AskPin(chatId int64) {
-	if _, err := s.botApi.Send(tgbotapi.NewMessage(chatId, "2️⃣ Enter pin code. You can use one pin code for all passwords or one pin code for one password.")); err != nil {
-		s.logger.Panic(err)
+func (s *messageService) AskPin(chatId int64, register bool) {
+	if register {
+		if _, err := s.botApi.Send(tgbotapi.NewMessage(chatId, "2️⃣ Enter pin code. You can use one pin code for all passwords or one pin code for one password.")); err != nil {
+			s.logger.Panic(err)
+		}
+	} else {
+
+		if _, err := s.botApi.Send(tgbotapi.NewMessage(chatId, "2️⃣ Enter pin code.")); err != nil {
+			s.logger.Panic(err)
+		}
 	}
 }
 

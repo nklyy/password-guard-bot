@@ -69,7 +69,7 @@ func (c *client) StartBot(updates tgbotapi.UpdatesChannel) {
 
 						user.UpdateState("pin-encrypt")
 
-						c.messageSvc.AskPin(update.Message.Chat.ID)
+						c.messageSvc.AskPin(update.Message.Chat.ID, true)
 						continue
 					case "pin-encrypt":
 						c.messageSvc.DeleteMessage(update.Message.Chat.ID, update.Message.MessageID)
@@ -186,14 +186,14 @@ func (c *client) StartBot(updates tgbotapi.UpdatesChannel) {
 				if user.State == "decrypt" {
 					user.UpdateFrom(update.CallbackQuery.Data)
 					user.UpdateState("pin-decrypt")
-					c.messageSvc.AskPin(update.CallbackQuery.Message.Chat.ID)
+					c.messageSvc.AskPin(update.CallbackQuery.Message.Chat.ID, false)
 				}
 
 				switch update.CallbackQuery.Data {
 				case "yes":
 					user.UpdateState("pin-encrypt")
 
-					c.messageSvc.AskPin(update.CallbackQuery.Message.Chat.ID)
+					c.messageSvc.AskPin(update.CallbackQuery.Message.Chat.ID, true)
 				case "no":
 					user.UpdateState("from")
 
