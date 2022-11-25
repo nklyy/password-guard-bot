@@ -1,0 +1,34 @@
+name: testing
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    name: Build
+    steps:
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.19
+
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Build server
+        run: make build
+
+  linter:
+    runs-on: ubuntu-latest
+    name: Run linter
+    needs:
+      - build
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Run linter
+        run: make lint
