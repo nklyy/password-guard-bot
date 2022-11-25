@@ -25,16 +25,16 @@ clean:
 	find . -name ".cover.out" | xargs rm -rf {}
 	$(call completed)
 
-# gen-mock: clean deps
-# 	$(call pprint, Generating mocks for tests...)
-# 	go get github.com/golang/mock/mockgen
-# 	go generate ./...
-# 	$(call completed)
+gen-mock: clean deps
+	$(call pprint, Generating mocks for tests...)
+	go get github.com/golang/mock/mockgen
+	go generate ./...
+	$(call completed)
 
-# test: gen-mock
-# 	$(call pprint, Runnning tests...)
-# 	go test ./... -coverprofile .cover.out
-# 	$(call completed)
+test: gen-mock
+	$(call pprint, Runnning tests...)
+	go test ./... -coverprofile .cover.out
+	$(call completed)
 
 build: clean deps
 	$(call pprint, Building app...)
@@ -45,8 +45,3 @@ run:
 	$(call pprint, Running app...)
 	go run ./cmd/main.go
 	$(call completed)
-
-# run-docker:
-# 	$(call pprint, Running app...)
-# 	docker-compose up -d --build
-# 	$(call completed)

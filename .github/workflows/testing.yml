@@ -32,3 +32,21 @@ jobs:
 
       - name: Run linter
         run: make lint
+
+  test:
+    runs-on: ubuntu-latest
+    name: Run tests
+    needs:
+      - linter
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Run test
+        run: |
+          export APP_ENV=development
+          export TELEGRAM_KEY=Example
+          export MONGO_DB_NAME=Example
+          export MONGO_DB_URL=http://127.0.0.1
+          export ITERATION=15
+          make test
