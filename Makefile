@@ -25,13 +25,13 @@ clean:
 	find . -name ".cover.out" | xargs rm -rf {}
 	$(call completed)
 
-gen-mock: clean deps
-	$(call pprint, Generating mocks for tests...)
-	go get github.com/golang/mock/mockgen
-	go generate ./...
-	$(call completed)
+# gen-mock: clean deps
+# 	$(call pprint, Generating mocks for tests...)
+# 	go get github.com/golang/mock/mockgen
+# 	go generate ./...
+# 	$(call completed)
 
-test: gen-mock
+test:
 	$(call pprint, Runnning tests...)
 	go test ./... -coverprofile .cover.out
 	$(call completed)
