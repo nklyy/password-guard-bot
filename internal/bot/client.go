@@ -95,7 +95,7 @@ func (c *client) StartBot(updates tgbotapi.UpdatesChannel) {
 						go func(chatId int64, messageId int) {
 							time.Sleep(10 * time.Second)
 							c.messageSvc.DeleteMessage(chatId, messageId)
-							c.messageSvc.SendManualMessage(tgbotapi.NewMessage(update.Message.Chat.ID, "Thanks for using.😌"))
+							c.messageSvc.SendManualMessage(tgbotapi.NewMessage(chatId, "Thanks for using.😌"))
 						}(update.Message.Chat.ID, msg.MessageID)
 
 						user.Refresh()
