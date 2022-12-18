@@ -38,7 +38,7 @@ test:
 
 build: clean deps
 	$(call pprint, Building app...)
-	go build -o ./cmd/main ./cmd
+	GOOS=linux GOARCH=amd64 go build -o password-guard-bot ./cmd/main.go
 	$(call completed)
 
 run:

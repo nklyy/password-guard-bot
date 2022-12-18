@@ -47,7 +47,7 @@ func (c *client) StartBot(updates tgbotapi.UpdatesChannel) {
 			if !update.Message.IsCommand() {
 				if user, ok := user_state[update.Message.Chat.ID]; ok {
 					switch user_state[update.Message.Chat.ID].State {
-					case "from_question":
+					case "question-want-replace":
 						c.messageSvc.DeleteMessage(update.Message.Chat.ID, update.Message.MessageID)
 						continue
 					case "from":
@@ -62,7 +62,7 @@ func (c *client) StartBot(updates tgbotapi.UpdatesChannel) {
 						}
 
 						if ok {
-							user.UpdateState("from_question")
+							user.UpdateState("question-want-replace")
 							c.messageSvc.SendAlreadyHaveNameWithKeyboard(update.Message.Chat.ID)
 							continue
 						}
@@ -99,6 +99,14 @@ func (c *client) StartBot(updates tgbotapi.UpdatesChannel) {
 						}(update.Message.Chat.ID, msg.MessageID)
 
 						user.Refresh()
+						continue
+					case "pin-update":
+						c.messageSvc.DeleteMessage(update.Message.Chat.ID, update.Message.MessageID)
+
+						user.UpdatePin(update.Message.Text)
+						user.UpdateState("login")
+
+						c.messageSvc.AskLogin(update.Message.Chat.ID)
 						continue
 					case "login":
 						c.messageSvc.DeleteMessage(update.Message.Chat.ID, update.Message.MessageID)
@@ -144,29 +152,60 @@ func (c *client) StartBot(updates tgbotapi.UpdatesChannel) {
 			case "start":
 				c.messageSvc.SendWelcomeMessage(update.Message.Chat.ID)
 
-				err := c.botSvc.CreateUser(update.Message.Chat.ID)
-				if err != nil {
+				if err := c.botSvc.CreateUser(update.Message.Chat.ID); err != nil {
 					if mongo.IsDuplicateKeyError(err) {
-						break
+						continue
 					}
 
 					c.messageSvc.SendWrongMessage(update.Message.Chat.ID)
 				}
 			case "enc":
+				ok, err := c.botSvc.CheckExistUser(update.Message.Chat.ID)
+				if err != nil {
+					c.messageSvc.SendWrongMessage(update.Message.Chat.ID)
+					continue
+				}
+
+				if !ok {
+					if err := c.botSvc.CreateUser(update.Message.Chat.ID); err != nil {
+						if mongo.IsDuplicateKeyError(err) {
+							continue
+						}
+
+						c.messageSvc.SendWrongMessage(update.Message.Chat.ID)
+					}
+				}
+
 				user_state[update.Message.Chat.ID] = &UserState{
 					State: "from",
 				}
 				c.messageSvc.SendStartEncryptProcess(update.Message.Chat.ID)
 			case "dec":
+				ok, err := c.botSvc.CheckExistUser(update.Message.Chat.ID)
+				if err != nil {
+					c.messageSvc.SendWrongMessage(update.Message.Chat.ID)
+					continue
+				}
+
+				if !ok {
+					if err := c.botSvc.CreateUser(update.Message.Chat.ID); err != nil {
+						if mongo.IsDuplicateKeyError(err) {
+							continue
+						}
+
+						c.messageSvc.SendWrongMessage(update.Message.Chat.ID)
+					}
+				}
+
 				userDataNameChunks, err := c.botSvc.GetUserDataNamesByChunks(update.Message.Chat.ID)
 				if err != nil {
 					c.messageSvc.SendWrongMessage(update.Message.Chat.ID)
-					break
+					continue
 				}
 
 				if userDataNameChunks == nil {
 					c.messageSvc.SendDoNotHaveData(update.Message.Chat.ID)
-					break
+					continue
 				}
 
 				user_state[update.Message.Chat.ID] = &UserState{
@@ -174,8 +213,38 @@ func (c *client) StartBot(updates tgbotapi.UpdatesChannel) {
 				}
 
 				c.messageSvc.AskWhatDecrypt(update.Message.Chat.ID, userDataNameChunks)
-			// case "del":
-			// 	c.messageSvc.SendMessage(tgbotapi.NewMessage(update.Message.Chat.ID, "I'm ok."))
+			case "upd":
+				ok, err := c.botSvc.CheckExistUser(update.Message.Chat.ID)
+				if err != nil {
+					c.messageSvc.SendWrongMessage(update.Message.Chat.ID)
+					continue
+				}
+
+				if !ok {
+					if err := c.botSvc.CreateUser(update.Message.Chat.ID); err != nil {
+						if mongo.IsDuplicateKeyError(err) {
+							continue
+						}
+
+						c.messageSvc.SendWrongMessage(update.Message.Chat.ID)
+					}
+				}
+
+				userDataNameChunks, err := c.botSvc.GetUserDataNamesByChunks(update.Message.Chat.ID)
+				if err != nil {
+					c.messageSvc.SendWrongMessage(update.Message.Chat.ID)
+					continue
+				}
+
+				if userDataNameChunks == nil {
+					c.messageSvc.SendDoNotHaveData(update.Message.Chat.ID)
+					continue
+				}
+
+				user_state[update.Message.Chat.ID] = &UserState{
+					State: "update",
+				}
+				c.messageSvc.AskWhatUpdate(update.Message.Chat.ID, userDataNameChunks)
 			default:
 				c.messageSvc.SendIncorrectCommand(update.Message.Chat.ID)
 			}
@@ -189,15 +258,23 @@ func (c *client) StartBot(updates tgbotapi.UpdatesChannel) {
 					c.messageSvc.AskPin(update.CallbackQuery.Message.Chat.ID, false)
 				}
 
-				switch update.CallbackQuery.Data {
-				case "yes":
-					user.UpdateState("pin-encrypt")
+				if user.State == "update" {
+					user.UpdateFrom(update.CallbackQuery.Data)
+					user.UpdateState("pin-update")
+					c.messageSvc.AskPin(update.CallbackQuery.Message.Chat.ID, false)
+				}
 
-					c.messageSvc.AskPin(update.CallbackQuery.Message.Chat.ID, true)
-				case "no":
-					user.UpdateState("from")
+				if user.State == "question-want-replace" {
+					switch update.CallbackQuery.Data {
+					case "yes":
+						user.UpdateState("pin-encrypt")
 
-					c.messageSvc.AskNewNameFromData(update.CallbackQuery.Message.Chat.ID)
+						c.messageSvc.AskPin(update.CallbackQuery.Message.Chat.ID, true)
+					case "no":
+						user.UpdateState("from")
+
+						c.messageSvc.AskNewNameFromData(update.CallbackQuery.Message.Chat.ID)
+					}
 				}
 			}
 		}

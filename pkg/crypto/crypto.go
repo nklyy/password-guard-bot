@@ -53,7 +53,10 @@ func (c *crypto) Encrypt(pin []byte, data []byte) (string, error) {
 }
 
 func (c *crypto) Decrypt(pin []byte, data string) (string, error) {
-	ciphertext, _ := base64.StdEncoding.DecodeString(strings.TrimSpace(data))
+	ciphertext, err := base64.StdEncoding.DecodeString(strings.TrimSpace(data))
+	if err != nil {
+		return "", err
+	}
 
 	block, err := aes.NewCipher(pin)
 	if err != nil {

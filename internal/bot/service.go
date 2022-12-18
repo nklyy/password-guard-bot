@@ -9,11 +9,13 @@ import (
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 	"go.uber.org/zap"
 )
 
 type Service interface {
 	CheckDuplicateFromWhatData(user UserState, chatId int64, from string) (bool, error)
+	CheckExistUser(chatId int64) (bool, error)
 
 	GetUserData(chatId int64) (map[string]string, error)
 	GetUserDataNamesByChunks(chatId int64) ([][]tgbotapi.InlineKeyboardButton, error)
@@ -68,6 +70,19 @@ func (s *service) CheckDuplicateFromWhatData(user UserState, chatId int64, from 
 	return false, nil
 }
 
+func (s *service) CheckExistUser(chatId int64) (bool, error) {
+	_, err := s.repository.GetUser(context.Background(), bson.M{"telegram_id": chatId})
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return false, nil
+		}
+
+		return false, err
+	}
+
+	return true, nil
+}
+
 func (s *service) GetUserData(chatId int64) (map[string]string, error) {
 	user, err := s.repository.GetUser(context.Background(), bson.M{"telegram_id": chatId})
 	if err != nil {
@@ -110,6 +125,7 @@ func (s *service) GetUserDataNamesByChunks(chatId int64) ([][]tgbotapi.InlineKey
 func (s *service) CreateUser(chatId int64) error {
 	user, err := NewUser(&chatId)
 	if err != nil {
+		s.logger.Errorf("failed to create user instance: %s", err)
 		return err
 	}
 
@@ -154,6 +170,7 @@ func (s *service) EncryptData(chatId int64, userState UserState) (*string, error
 	rawData := fmt.Sprintf("%s:%s", strings.TrimSpace(userState.Login), strings.TrimSpace(userState.Password))
 	encryptedData, err := s.cryptoSvc.Encrypt(s.cryptoSvc.GenerateNormalSizeCode(strings.TrimSpace(userState.Pin)), []byte(rawData))
 	if err != nil {
+		s.logger.Errorf("failed to encrypt data: %s", err)
 		return nil, err
 	}
 
@@ -172,6 +189,7 @@ func (s *service) DecryptData(chatId int64, pin, fromWhat string) (*string, erro
 	normalizePin := s.cryptoSvc.GenerateNormalSizeCode(strings.TrimSpace(pin))
 	decrypted, err := s.cryptoSvc.Decrypt([]byte(normalizePin), data)
 	if err != nil {
+		s.logger.Errorf("failed to decrypt data: %s", err)
 		return nil, err
 	}
 

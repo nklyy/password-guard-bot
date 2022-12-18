@@ -65,7 +65,7 @@ func TestInit(t *testing.T) {
 
 			got, err := config.GetConfig()
 			if (err != nil) != test.wantError {
-				t.Errorf("Init() error = %v, wantErr %v", err, test.wantError)
+				t.Errorf("Init() error = %s, wantErr %v", err, test.wantError)
 
 				return
 			}

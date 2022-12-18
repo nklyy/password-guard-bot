@@ -19,30 +19,30 @@ import (
 func main() {
 	cfg, err := config.GetConfig()
 	if err != nil {
-		log.Fatalf("failed to load config: %v", err)
+		log.Fatalf("failed to load config: %s", err)
 	}
 
 	// Init logger
 	newLogger, err := logger.NewLogger(cfg.Environment)
 	if err != nil {
-		log.Fatalf("can't create logger: %v", err)
+		log.Fatalf("can't create logger: %s", err)
 	}
 
 	zapLogger, err := newLogger.SetupZapLogger()
 	if err != nil {
-		log.Fatalf("can't setup zap logger: %v", err)
+		log.Fatalf("can't setup zap logger: %s", err)
 	}
 	defer func(zapLogger *zap.SugaredLogger) {
 		err := zapLogger.Sync()
 		if err != nil && !errors.Is(err, syscall.ENOTTY) {
-			log.Fatalf("can't setup zap logger: %v", err)
+			log.Fatalf("can't setup zap logger: %s", err)
 		}
 	}(zapLogger)
 
 	// Connect to database
 	db, ctx, cancel, err := mongodb.NewConnection(cfg)
 	if err != nil {
-		zapLogger.Fatalf("failed to connect to mongodb: %v", err)
+		zapLogger.Fatalf("failed to connect to mongodb: %s", err)
 	}
 	defer mongodb.Close(db, ctx, cancel)
 
@@ -55,18 +55,18 @@ func main() {
 
 	cryptoService, err := crypto.NewCryptoService(&cfg.Crypto.Iteration)
 	if err != nil {
-		zapLogger.Fatalf("failed to create crypto service: %v", err)
+		zapLogger.Fatalf("failed to create crypto service: %s", err)
 	}
 
 	// Repositories
 	botRepository, err := bot.NewRepository(db, cfg.MongoDbName, zapLogger)
 	if err != nil {
-		zapLogger.Fatalf("failed to create bot repository: %v", err)
+		zapLogger.Fatalf("failed to create bot repository: %s", err)
 	}
 
 	err = botRepository.CreateUniqueIndexes(context.Background())
 	if err != nil {
-		zapLogger.Fatalf("failed to create bot repository indexes: %v", err)
+		zapLogger.Fatalf("failed to create bot repository indexes: %s", err)
 	}
 
 	botApi, err := tgbotapi.NewBotAPI(cfg.TelegramKey)
@@ -77,17 +77,17 @@ func main() {
 
 	messageService, err := bot.NewMessageService(botApi, zapLogger)
 	if err != nil {
-		zapLogger.Fatalf("failed to create message service: %v", err)
+		zapLogger.Fatalf("failed to create message service: %s", err)
 	}
 
 	botService, err := bot.NewService(botApi, cryptoService, botRepository, zapLogger)
 	if err != nil {
-		zapLogger.Fatalf("failed to create bot service: %v", err)
+		zapLogger.Fatalf("failed to create bot service: %s", err)
 	}
 
 	botClient, err := bot.NewClient(botService, messageService, zapLogger)
 	if err != nil {
-		zapLogger.Fatalf("failed to create bot service: %v", err)
+		zapLogger.Fatalf("failed to create bot service: %s", err)
 	}
 
 	updateConfig := tgbotapi.NewUpdate(0)
