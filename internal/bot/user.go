@@ -31,3 +31,7 @@ func (u *User) AddData(fromWhatData string, encryptedData string) {
 		(*u.Data)[fromWhatData] = encryptedData
 	}
 }
+
+func (u *User) DeleteData(what string) {
+	delete(*u.Data, what)
+}

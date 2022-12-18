@@ -245,6 +245,38 @@ func (c *client) StartBot(updates tgbotapi.UpdatesChannel) {
 					State: "update",
 				}
 				c.messageSvc.AskWhatUpdate(update.Message.Chat.ID, userDataNameChunks)
+			case "del":
+				ok, err := c.botSvc.CheckExistUser(update.Message.Chat.ID)
+				if err != nil {
+					c.messageSvc.SendWrongMessage(update.Message.Chat.ID)
+					continue
+				}
+
+				if !ok {
+					if err := c.botSvc.CreateUser(update.Message.Chat.ID); err != nil {
+						if mongo.IsDuplicateKeyError(err) {
+							continue
+						}
+
+						c.messageSvc.SendWrongMessage(update.Message.Chat.ID)
+					}
+				}
+
+				userDataNameChunks, err := c.botSvc.GetUserDataNamesByChunks(update.Message.Chat.ID)
+				if err != nil {
+					c.messageSvc.SendWrongMessage(update.Message.Chat.ID)
+					continue
+				}
+
+				if userDataNameChunks == nil {
+					c.messageSvc.SendDoNotHaveData(update.Message.Chat.ID)
+					continue
+				}
+
+				user_state[update.Message.Chat.ID] = &UserState{
+					State: "delete",
+				}
+				c.messageSvc.AskWhatDelete(update.Message.Chat.ID, userDataNameChunks)
 			default:
 				c.messageSvc.SendIncorrectCommand(update.Message.Chat.ID)
 			}
@@ -262,6 +294,15 @@ func (c *client) StartBot(updates tgbotapi.UpdatesChannel) {
 					user.UpdateFrom(update.CallbackQuery.Data)
 					user.UpdateState("pin-update")
 					c.messageSvc.AskPin(update.CallbackQuery.Message.Chat.ID, false)
+				}
+
+				if user.State == "delete" {
+					if err := c.botSvc.DeleteData(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Data); err != nil {
+						c.messageSvc.SendWrongMessage(update.Message.Chat.ID)
+						continue
+					}
+
+					c.messageSvc.SendSuccessDelete(update.CallbackQuery.Message.Chat.ID)
 				}
 
 				if user.State == "question-want-replace" {
