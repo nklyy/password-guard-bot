@@ -45,11 +45,11 @@ func (r *repository) GetUser(ctx context.Context, filter bson.M) (*User, error) 
 
 	if err := r.db.Database(r.dbName).Collection("data").FindOne(ctx, filter).Decode(&user); err != nil {
 		if err == mongo.ErrNoDocuments {
-			r.logger.Errorf("unable to find user by name %v", err)
+			r.logger.Errorf("failed to find user by name: %s", err)
 			return nil, err
 		}
 
-		r.logger.Errorf("unable to find user due to internal error: %v", err)
+		r.logger.Errorf("failed to find user due to internal error: s", err)
 		return nil, err
 	}
 
@@ -60,11 +60,11 @@ func (r *repository) CreatUser(ctx context.Context, user *User) error {
 	_, err := r.db.Database(r.dbName).Collection("data").InsertOne(ctx, user)
 	if err != nil {
 		if mongo.IsDuplicateKeyError(err) {
-			r.logger.Errorf("failed to insert user data to db due to duplicate error: %v", err)
+			r.logger.Errorf("failed to insert user data to db due to duplicate error: %s", err)
 			return err
 		}
 
-		r.logger.Errorf("failed to insert user data to db: %v", err)
+		r.logger.Errorf("failed to insert user data to db: %s", err)
 		return err
 	}
 
@@ -90,7 +90,7 @@ func (r *repository) UpdateUser(ctx context.Context, user *User) error {
 		bson.D{primitive.E{Key: "$set", Value: user}})
 
 	if err != nil {
-		r.logger.Errorf("failed to update user %v", err)
+		r.logger.Errorf("failed to update user %s", err)
 		return err
 	}
 
@@ -100,7 +100,7 @@ func (r *repository) UpdateUser(ctx context.Context, user *User) error {
 func (r *repository) DeleteData(ctx context.Context, filter bson.M) error {
 	_, err := r.db.Database(r.dbName).Collection("data").DeleteOne(ctx, filter)
 	if err != nil {
-		r.logger.Errorf("failed to delete data %v", err)
+		r.logger.Errorf("failed to delete data %s", err)
 		return err
 	}
 

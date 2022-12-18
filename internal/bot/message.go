@@ -18,12 +18,14 @@ type MessageService interface {
 	SendSuccessMessage(chatId int64)
 	SendAlreadyHaveNameWithKeyboard(chatId int64)
 	SendDoNotHaveData(chatId int64)
+	SendUpdateWhatExactly(chatId int64)
 
 	AskPin(chatId int64, register bool)
 	AskLogin(chatId int64)
 	AskPassword(chatId int64)
 	AskNewNameFromData(chatId int64)
 	AskWhatDecrypt(chatId int64, data [][]tgbotapi.InlineKeyboardButton)
+	AskWhatUpdate(chatId int64, data [][]tgbotapi.InlineKeyboardButton)
 }
 
 type messageService struct {
@@ -42,10 +44,18 @@ func NewMessageService(botApi *tgbotapi.BotAPI, logger *zap.SugaredLogger) (Mess
 	return &messageService{botApi: botApi, logger: logger}, nil
 }
 
-var keyboard = tgbotapi.NewInlineKeyboardMarkup(
+var keyboardReplaceName = tgbotapi.NewInlineKeyboardMarkup(
 	tgbotapi.NewInlineKeyboardRow(
 		tgbotapi.NewInlineKeyboardButtonData("Yes", "yes"),
 		tgbotapi.NewInlineKeyboardButtonData("No", "no"),
+	),
+)
+
+var keyboardUpdateWhat = tgbotapi.NewInlineKeyboardMarkup(
+	tgbotapi.NewInlineKeyboardRow(
+		tgbotapi.NewInlineKeyboardButtonData("Login", "login"),
+		tgbotapi.NewInlineKeyboardButtonData("Password", "password"),
+		tgbotapi.NewInlineKeyboardButtonData("All data", "all"),
 	),
 )
 
@@ -98,7 +108,7 @@ func (s *messageService) SendSuccessMessage(chatId int64) {
 func (s *messageService) SendAlreadyHaveNameWithKeyboard(chatId int64) {
 	msg := tgbotapi.NewMessage(chatId, "🟠 You already have this name. Do you want replace?")
 
-	msg.ReplyMarkup = keyboard
+	msg.ReplyMarkup = keyboardReplaceName
 	if _, err := s.botApi.Send(msg); err != nil {
 		s.logger.Panic(err)
 	}
@@ -110,9 +120,18 @@ func (s *messageService) SendDoNotHaveData(chatId int64) {
 	}
 }
 
+func (s *messageService) SendUpdateWhatExactly(chatId int64) {
+	msg := tgbotapi.NewMessage(chatId, "🟠 What exactly do you want to update?")
+
+	msg.ReplyMarkup = keyboardUpdateWhat
+	if _, err := s.botApi.Send(msg); err != nil {
+		s.logger.Panic(err)
+	}
+}
+
 func (s *messageService) AskPin(chatId int64, register bool) {
 	if register {
-		if _, err := s.botApi.Send(tgbotapi.NewMessage(chatId, "2️⃣ Enter pin code. You can use one pin code for all passwords or one pin code for one password.")); err != nil {
+		if _, err := s.botApi.Send(tgbotapi.NewMessage(chatId, "2️⃣ Enter pin code. You can use one pin code for all data or one pin code for some data.\n🟠NOTICE: If you will lose your pin code we can not decrypt your data.")); err != nil {
 			s.logger.Panic(err)
 		}
 	} else {
@@ -143,6 +162,17 @@ func (s *messageService) AskNewNameFromData(chatId int64) {
 
 func (s *messageService) AskWhatDecrypt(chatId int64, data [][]tgbotapi.InlineKeyboardButton) {
 	msg := tgbotapi.NewMessage(chatId, "1️⃣ What do you want to decrypt?")
+	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
+		data...,
+	)
+
+	if _, err := s.botApi.Send(msg); err != nil {
+		s.logger.Panic(err)
+	}
+}
+
+func (s *messageService) AskWhatUpdate(chatId int64, data [][]tgbotapi.InlineKeyboardButton) {
+	msg := tgbotapi.NewMessage(chatId, "1️⃣ What do you want to update?")
 	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
 		data...,
 	)

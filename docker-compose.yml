@@ -1,0 +1,12 @@
+version: '3.9'
+services:
+  mongodb:
+    image: mongo:latest
+    container_name: password-guard-bot-mongodb
+    restart: on-failure
+    ports:
+      - 27017:27017
+    environment:
+      - MONGO_INITDB_DATABASE=${MONGO_DB_NAME}
+    volumes:
+      - ./data/mongo/.mongodb-tmp:/data/db
