@@ -25,6 +25,8 @@ type Service interface {
 	UpdateUser(chatId int64, user User) error
 	UpdateUserEncryptedData(chatId int64, fromWhat, encryptedData string) error
 
+	DeleteData(chatId int64, what string) error
+
 	EncryptData(chatId int64, userState UserState) (*string, error)
 	DecryptData(chatId int64, pin, fromWhat string) (*string, error)
 }
@@ -89,10 +91,6 @@ func (s *service) GetUserData(chatId int64) (map[string]string, error) {
 		return nil, err
 	}
 
-	if user == nil {
-		return nil, nil
-	}
-
 	return (*user.Data), nil
 }
 
@@ -152,11 +150,23 @@ func (s *service) UpdateUserEncryptedData(chatId int64, fromWhat, encryptedData 
 		return err
 	}
 
-	if user == nil {
-		return errors.New("User not found")
+	user.AddData(fromWhat, encryptedData)
+
+	err = s.repository.UpdateUser(context.Background(), user)
+	if err != nil {
+		return err
 	}
 
-	user.AddData(fromWhat, encryptedData)
+	return nil
+}
+
+func (s *service) DeleteData(chatId int64, what string) error {
+	user, err := s.repository.GetUser(context.Background(), bson.M{"telegram_id": chatId})
+	if err != nil {
+		return err
+	}
+
+	user.DeleteData(what)
 
 	err = s.repository.UpdateUser(context.Background(), user)
 	if err != nil {

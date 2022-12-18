@@ -19,6 +19,7 @@ type MessageService interface {
 	SendAlreadyHaveNameWithKeyboard(chatId int64)
 	SendDoNotHaveData(chatId int64)
 	SendUpdateWhatExactly(chatId int64)
+	SendSuccessDelete(chatId int64)
 
 	AskPin(chatId int64, register bool)
 	AskLogin(chatId int64)
@@ -26,6 +27,7 @@ type MessageService interface {
 	AskNewNameFromData(chatId int64)
 	AskWhatDecrypt(chatId int64, data [][]tgbotapi.InlineKeyboardButton)
 	AskWhatUpdate(chatId int64, data [][]tgbotapi.InlineKeyboardButton)
+	AskWhatDelete(chatId int64, data [][]tgbotapi.InlineKeyboardButton)
 }
 
 type messageService struct {
@@ -129,6 +131,12 @@ func (s *messageService) SendUpdateWhatExactly(chatId int64) {
 	}
 }
 
+func (s *messageService) SendSuccessDelete(chatId int64) {
+	if _, err := s.botApi.Send(tgbotapi.NewMessage(chatId, "✅ Success. The data was successfully deleted.")); err != nil {
+		s.logger.Panic(err)
+	}
+}
+
 func (s *messageService) AskPin(chatId int64, register bool) {
 	if register {
 		if _, err := s.botApi.Send(tgbotapi.NewMessage(chatId, "2️⃣ Enter pin code. You can use one pin code for all data or one pin code for some data.\n🟠NOTICE: If you will lose your pin code we can not decrypt your data.")); err != nil {
@@ -173,6 +181,17 @@ func (s *messageService) AskWhatDecrypt(chatId int64, data [][]tgbotapi.InlineKe
 
 func (s *messageService) AskWhatUpdate(chatId int64, data [][]tgbotapi.InlineKeyboardButton) {
 	msg := tgbotapi.NewMessage(chatId, "1️⃣ What do you want to update?")
+	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
+		data...,
+	)
+
+	if _, err := s.botApi.Send(msg); err != nil {
+		s.logger.Panic(err)
+	}
+}
+
+func (s *messageService) AskWhatDelete(chatId int64, data [][]tgbotapi.InlineKeyboardButton) {
+	msg := tgbotapi.NewMessage(chatId, "1️⃣ What do you want to delete?")
 	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
 		data...,
 	)
