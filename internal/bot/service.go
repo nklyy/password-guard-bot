@@ -100,7 +100,7 @@ func (s *service) GetUserDataNamesByChunks(chatId int64) ([][]tgbotapi.InlineKey
 		return nil, err
 	}
 
-	if user.Data == nil {
+	if user.Data == nil || len(*user.Data) == 0 {
 		return nil, nil
 	}
 
