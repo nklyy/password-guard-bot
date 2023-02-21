@@ -95,6 +95,7 @@ func (s *service) GetUserData(chatId int64) (map[string]string, error) {
 }
 
 func (s *service) GetUserDataNamesByChunks(chatId int64) ([][]tgbotapi.InlineKeyboardButton, error) {
+	// ADD pagination
 	user, err := s.repository.GetUser(context.Background(), bson.M{"telegram_id": chatId})
 	if err != nil {
 		return nil, err
@@ -203,5 +204,7 @@ func (s *service) DecryptData(chatId int64, pin, fromWhat string) (*string, erro
 		return nil, err
 	}
 
-	return &decrypted, nil
+	replacedDec := strings.Replace(decrypted, "\n", " ", -1)
+
+	return &replacedDec, nil
 }
