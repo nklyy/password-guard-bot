@@ -14,6 +14,7 @@ import (
 //go:generate mockgen -source=repository.go -destination=mocks/repository_mock.go
 type Repository interface {
 	GetUser(ctx context.Context, filter bson.M) (*User, error)
+	GetUserWithSliceAndDataSize(ctx context.Context, filter bson.M, page int) (*User, *int, error)
 	CreatUser(ctx context.Context, user *User) error
 	CreateUniqueIndexes(ctx context.Context) error
 	UpdateUser(ctx context.Context, user *User) error
@@ -54,6 +55,52 @@ func (r *repository) GetUser(ctx context.Context, filter bson.M) (*User, error) 
 	}
 
 	return &user, nil
+}
+
+func (r *repository) GetUserWithSliceAndDataSize(ctx context.Context, filter bson.M, page int) (*User, *int, error) {
+	var dbUser struct {
+		ID         primitive.ObjectID  `bson:"_id"`
+		TelegramId int64               `bson:"telegram_id"`
+		Data       []map[string]string `bson:"data"`
+		DataSize   int                 `bson:"data_size"`
+	}
+
+	limit := 9
+	offset := (page - 1) * limit
+
+	projection := bson.M{
+		"data": bson.M{
+			"$slice": bson.A{bson.D{{Key: "$objectToArray", Value: "$data"}}, offset, limit},
+		},
+		"data_size": bson.M{
+			"$size": bson.A{bson.D{{Key: "$objectToArray", Value: "$data"}}},
+		},
+	}
+
+	options := options.FindOne().SetProjection(projection)
+
+	if err := r.db.Database(r.dbName).Collection("data").FindOne(ctx, filter, options).Decode(&dbUser); err != nil {
+		if err == mongo.ErrNoDocuments {
+			r.logger.Errorf("failed to find user by name: %s", err)
+			return nil, nil, err
+		}
+
+		r.logger.Errorf("failed to find user due to internal error: s", err)
+		return nil, nil, err
+	}
+
+	var user User
+	user.ID = dbUser.ID
+	user.TelegramId = dbUser.TelegramId
+
+	data := make(map[string]string)
+	for _, item := range dbUser.Data {
+		data[item["k"]] = item["v"]
+	}
+
+	user.Data = &data
+
+	return &user, &dbUser.DataSize, nil
 }
 
 func (r *repository) CreatUser(ctx context.Context, user *User) error {

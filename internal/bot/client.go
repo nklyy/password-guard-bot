@@ -197,7 +197,7 @@ func (c *client) StartBot(updates tgbotapi.UpdatesChannel) {
 					}
 				}
 
-				userDataNameChunks, err := c.botSvc.GetUserDataNamesByChunks(update.Message.Chat.ID)
+				userDataNameChunks, err := c.botSvc.GetUserDataNamesByChunks(update.Message.Chat.ID, 1)
 				if err != nil {
 					c.messageSvc.SendWrongMessage(update.Message.Chat.ID)
 					continue
@@ -209,6 +209,7 @@ func (c *client) StartBot(updates tgbotapi.UpdatesChannel) {
 				}
 
 				user_state[update.Message.Chat.ID] = &UserState{
+					Page:  1,
 					State: "decrypt",
 				}
 
@@ -230,7 +231,7 @@ func (c *client) StartBot(updates tgbotapi.UpdatesChannel) {
 					}
 				}
 
-				userDataNameChunks, err := c.botSvc.GetUserDataNamesByChunks(update.Message.Chat.ID)
+				userDataNameChunks, err := c.botSvc.GetUserDataNamesByChunks(update.Message.Chat.ID, 1)
 				if err != nil {
 					c.messageSvc.SendWrongMessage(update.Message.Chat.ID)
 					continue
@@ -242,8 +243,10 @@ func (c *client) StartBot(updates tgbotapi.UpdatesChannel) {
 				}
 
 				user_state[update.Message.Chat.ID] = &UserState{
+					Page:  1,
 					State: "update",
 				}
+
 				c.messageSvc.AskWhatUpdate(update.Message.Chat.ID, userDataNameChunks)
 			case "del":
 				ok, err := c.botSvc.CheckExistUser(update.Message.Chat.ID)
@@ -262,7 +265,7 @@ func (c *client) StartBot(updates tgbotapi.UpdatesChannel) {
 					}
 				}
 
-				userDataNameChunks, err := c.botSvc.GetUserDataNamesByChunks(update.Message.Chat.ID)
+				userDataNameChunks, err := c.botSvc.GetUserDataNamesByChunks(update.Message.Chat.ID, 1)
 				if err != nil {
 					c.messageSvc.SendWrongMessage(update.Message.Chat.ID)
 					continue
@@ -274,8 +277,10 @@ func (c *client) StartBot(updates tgbotapi.UpdatesChannel) {
 				}
 
 				user_state[update.Message.Chat.ID] = &UserState{
+					Page:  1,
 					State: "delete",
 				}
+
 				c.messageSvc.AskWhatDelete(update.Message.Chat.ID, userDataNameChunks)
 			default:
 				c.messageSvc.SendIncorrectCommand(update.Message.Chat.ID)
@@ -285,20 +290,35 @@ func (c *client) StartBot(updates tgbotapi.UpdatesChannel) {
 
 			if user, ok := user_state[update.CallbackQuery.Message.Chat.ID]; ok {
 				if user.State == "decrypt" {
+					if update.CallbackQuery.Data == "next" || update.CallbackQuery.Data == "prev" {
+						c.handlePagination(update.CallbackQuery.Data, user, update.CallbackQuery.Message.Chat.ID)
+						continue
+					}
+
 					user.UpdateFrom(update.CallbackQuery.Data)
 					user.UpdateState("pin-decrypt")
 					c.messageSvc.AskPin(update.CallbackQuery.Message.Chat.ID, false)
 				}
 
 				if user.State == "update" {
+					if update.CallbackQuery.Data == "next" || update.CallbackQuery.Data == "prev" {
+						c.handlePagination(update.CallbackQuery.Data, user, update.CallbackQuery.Message.Chat.ID)
+						continue
+					}
+
 					user.UpdateFrom(update.CallbackQuery.Data)
 					user.UpdateState("pin-update")
 					c.messageSvc.AskPin(update.CallbackQuery.Message.Chat.ID, false)
 				}
 
 				if user.State == "delete" {
+					if update.CallbackQuery.Data == "next" || update.CallbackQuery.Data == "prev" {
+						c.handlePagination(update.CallbackQuery.Data, user, update.CallbackQuery.Message.Chat.ID)
+						continue
+					}
+
 					if err := c.botSvc.DeleteData(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Data); err != nil {
-						c.messageSvc.SendWrongMessage(update.Message.Chat.ID)
+						c.messageSvc.SendWrongMessage(update.CallbackQuery.Message.Chat.ID)
 						continue
 					}
 
@@ -319,5 +339,30 @@ func (c *client) StartBot(updates tgbotapi.UpdatesChannel) {
 				}
 			}
 		}
+	}
+}
+
+func (c *client) handlePagination(data string, user *UserState, chatId int64) {
+	switch data {
+	case "next":
+		user.IncPage()
+
+		userDataNameChunks, err := c.botSvc.GetUserDataNamesByChunks(chatId, user.Page)
+		if err != nil {
+			c.messageSvc.SendWrongMessage(chatId)
+			return
+		}
+
+		c.messageSvc.AskWhatDecrypt(chatId, userDataNameChunks)
+	case "prev":
+		user.DecPage()
+
+		userDataNameChunks, err := c.botSvc.GetUserDataNamesByChunks(chatId, user.Page)
+		if err != nil {
+			c.messageSvc.SendWrongMessage(chatId)
+			return
+		}
+
+		c.messageSvc.AskWhatDecrypt(chatId, userDataNameChunks)
 	}
 }

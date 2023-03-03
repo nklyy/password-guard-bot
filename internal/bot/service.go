@@ -18,7 +18,7 @@ type Service interface {
 	CheckExistUser(chatId int64) (bool, error)
 
 	GetUserData(chatId int64) (map[string]string, error)
-	GetUserDataNamesByChunks(chatId int64) ([][]tgbotapi.InlineKeyboardButton, error)
+	GetUserDataNamesByChunks(chatId int64, page int) ([][]tgbotapi.InlineKeyboardButton, error)
 
 	CreateUser(chatId int64) error
 
@@ -94,8 +94,8 @@ func (s *service) GetUserData(chatId int64) (map[string]string, error) {
 	return (*user.Data), nil
 }
 
-func (s *service) GetUserDataNamesByChunks(chatId int64) ([][]tgbotapi.InlineKeyboardButton, error) {
-	user, err := s.repository.GetUser(context.Background(), bson.M{"telegram_id": chatId})
+func (s *service) GetUserDataNamesByChunks(chatId int64, page int) ([][]tgbotapi.InlineKeyboardButton, error) {
+	user, dataSize, err := s.repository.GetUserWithSliceAndDataSize(context.Background(), bson.M{"telegram_id": chatId}, page)
 	if err != nil {
 		return nil, err
 	}
@@ -115,7 +115,19 @@ func (s *service) GetUserDataNamesByChunks(chatId int64) ([][]tgbotapi.InlineKey
 		chunk = append(chunk, tgbotapi.NewInlineKeyboardButtonData(k, k))
 	}
 
+	var buttons []tgbotapi.InlineKeyboardButton
+	if page > 1 {
+		buttons = append(buttons, tgbotapi.NewInlineKeyboardButtonData("< Prev", "prev"))
+	}
+	if len(*user.Data) == 9 && len(*user.Data) != *dataSize {
+		buttons = append(buttons, tgbotapi.NewInlineKeyboardButtonData("Next >", "next"))
+	}
+
 	chunks = append(chunks, chunk)
+
+	if len(buttons) > 0 {
+		chunks = append(chunks, buttons)
+	}
 
 	return chunks, nil
 }
@@ -203,5 +215,7 @@ func (s *service) DecryptData(chatId int64, pin, fromWhat string) (*string, erro
 		return nil, err
 	}
 
-	return &decrypted, nil
+	replacedDec := strings.Replace(decrypted, "\n", " ", -1)
+
+	return &replacedDec, nil
 }
